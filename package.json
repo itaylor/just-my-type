@@ -1,5 +1,5 @@
 {
-  "name": "just_my_type",
+  "name": "@itaylor/just_my_type",
   "version": "0.0.1",
   "description": "Derives typescript types from JS objects",
   "main": "node/main.js",
