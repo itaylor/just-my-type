@@ -17,7 +17,7 @@ For each object you'd want to generate a type for, you'd create an instance of `
 
 ## Setup (node.js):
 ```sh
-npm install just-my-type
+npm install @itaylor/just-my-type
 ```
 ```ts
 import TypeGenerator from '@itaylor/just_my_type';
