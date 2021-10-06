@@ -1,4 +1,4 @@
-# just-my-type
+# just_my_type
 
 *Experimental!!!*
 
@@ -20,7 +20,7 @@ For each object you'd want to generate a type for, you'd create an instance of `
 npm install just-my-type
 ```
 ```ts
-import TypeGenerator from 'just-my-type';
+import TypeGenerator from 'just_my_type';
 ```
 
 ## Setup (deno):
