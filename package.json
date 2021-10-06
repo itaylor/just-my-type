@@ -5,7 +5,7 @@
   "main": "node/main.js",
   "type": "module",
   "scripts": {
-    "build": "deno run --no-check --allow-read --allow-write=./node https://deno.land/x/deno2node/src/cli.ts ./node.tsconfig",
+    "prepare": "deno run --no-check --allow-read --allow-write=./node https://deno.land/x/deno2node/src/cli.ts ./node.tsconfig",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
