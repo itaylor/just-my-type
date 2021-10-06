@@ -25,7 +25,7 @@ import TypeGenerator from 'just-my-type';
 
 ## Setup (deno):
 ```ts
-import TypeGenerator from 'https://deno.land/x/just-my-type@0.0.1/main.ts';
+import TypeGenerator from 'https://deno.land/x/just_my_type@0.0.1/main.ts';
 ```
 
 ## Usage
