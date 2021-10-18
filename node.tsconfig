@@ -2,6 +2,7 @@
   "include": [ "*.ts"],
   "exclude": [ "*.test.ts" ],
   "compilerOptions": {
+    "declaration": true,
     "outDir": "./node",
     "allowJs": true,
     "esModuleInterop": true,
