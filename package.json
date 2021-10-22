@@ -1,10 +1,10 @@
 {
   "name": "@itaylor/just_my_type",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Derives typescript types from JS objects",
   "main": "node/main.js",
   "types": "node/main.d.ts",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "prepare": "deno run --no-check --allow-read --allow-write=./node https://deno.land/x/deno2node/src/cli.ts ./node.tsconfig",
     "test": "echo \"Error: no test specified\" && exit 1"

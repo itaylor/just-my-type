@@ -9,7 +9,7 @@
     "experimentalDecorators": true,
     "inlineSourceMap": true,
     "isolatedModules": true,
-    "module": "esnext",
+    "module": "commonjs",
     "strict": true,
     "target": "esnext",
     "useDefineForClassFields": true
