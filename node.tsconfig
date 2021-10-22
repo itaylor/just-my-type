@@ -11,7 +11,7 @@
     "isolatedModules": true,
     "module": "commonjs",
     "strict": true,
-    "target": "esnext",
+    "target": "es2019",
     "useDefineForClassFields": true
   }
 }
