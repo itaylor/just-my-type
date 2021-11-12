@@ -1,4 +1,4 @@
-import { MetaModel, SuggestOptions, ObjectMetaModel, ArrayMetaModel } from './types.ts';
+import { MetaModel, ObjectMetaModel, ArrayMetaModel, RecordMetaModel } from './types.ts';
 
 
 
@@ -9,6 +9,9 @@ export function printType(mm: MetaModel, depth: number): string {
     }
     if (cm.type === 'array') {
       return printArray(cm, depth);
+    }
+    if (cm.type === 'record') {
+      return printRecord(cm, depth);
     }
     return cm.type;
   }).join(' | ');
@@ -61,4 +64,14 @@ function printArray(am: ArrayMetaModel, depth: number) {
     return `Array<unknown>`;
   }
   return `Array<${printType(am.items, depth)}>`
+}
+
+function printRecord(rm: RecordMetaModel, depth: number) {
+  if (rm.values.length === 0) {
+    return `Record<string, unknown>`;
+  }
+  else {
+    return `Record<string, ${printType(rm.values, depth)}>`;
+  }
+
 }

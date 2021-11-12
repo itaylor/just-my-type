@@ -118,31 +118,64 @@ export function OptionalStrategy(key: string, obj: unknown, context: TypeContext
   }
 }
 
-export function RecordStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints ): void {
-  const mm = context[key];
-  const match = findBestModel(key, obj, context);
-  const valueKey = `${key}<>`;
-  let record: RecordMetaModel;
-  if (match.existing && match.model.type === 'record') {
-    record = match.model;
-    if (match.diff > 0) {
-      Object.values(obj as Record<string, unknown>).forEach(o => observeOne(valueKey, o, context, opts))
-    }
+export function RecordStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints): void {
+  const cm = createMetaModel(key, obj, context) as ObjectMetaModel;
+  const existingModel = context[key];
+  const existingRecord = existingModel.find((m) => m.type === 'record') as RecordMetaModel | undefined;
+
+  if (existingRecord) {
+   expandObjectTypesToSingleList(cm, existingRecord.values);
   } else {
-    // promote all existing objects to Record<string, X | Y | Z> where X, Y, Z are types of values of the objects
-    // Remove all 'object' types from metamodel, insert a record type instead.
-    record = { name: key, type: 'record', keys: ['string'], values: [] };
-    const newMm: MetaModel = [record];
-    for (const cm of mm) {
-      if (cm.type === 'object') {
-        Object.values(cm.model).forEach(o => observeOne(valueKey, o, context, opts));
-      } else {
-        newMm.push(cm);
-      }
+    const nonObjTypes: ConcreteMetaModel[] = [];
+    const objTypes: ObjectMetaModel[] = [];
+    existingModel.forEach((m) => (m.type === 'object' ? objTypes : nonObjTypes).push(m));
+    const allValues: MetaModel = [];
+    objTypes.forEach((o) => {
+      expandObjectTypesToSingleList(o, allValues);
+    });
+    const record: RecordMetaModel = {
+      type: 'record',
+      name: key,
+      values: allValues
     }
+    context[key] = [record, ...nonObjTypes];
   }
-  record.values = context[valueKey];
 }
+
+  // for (const m2 of existingModel) {
+  //   if (m2.type === 'record') {
+
+  //   }
+  //   const result = compare(cm, m2);
+  //   if (result.exactMatch) {
+  //     return; // already exists, do nothing
+  //   } else if (result.compatibleType) {
+  //     if (bestMatch === null || bestMatch.diff > result.diff) {
+  //       bestMatch = result;
+  //       bestMatchModel = m2 as ObjectMetaModel;
+  //     }
+  //   }
+  // }
+  // if (match.existing && match.model.type === 'record') {
+  //   record = match.model;
+  //   if (match.diff > 0) {
+  //     Object.values(obj as Record<string, unknown>).forEach(o => observeOne(valueKey, o, context, opts))
+  //   }
+  // } else {
+  //   // promote all existing objects to Record<string, X | Y | Z> where X, Y, Z are types of values of the objects
+  //   // Remove all 'object' types from metamodel, insert a record type instead.
+  //   record = { name: key, type: 'record', keys: ['string'], values: [] };
+  //   const newMm: MetaModel = [record];
+  //   for (const cm of mm) {
+  //     if (cm.type === 'object') {
+  //       Object.values(cm.model).forEach(o => observeOne(valueKey, o, context, opts));
+  //     } else {
+  //       newMm.push(cm);
+  //     }
+  //   }
+  // }
+  // record.values = context[valueKey];
+//}
 
 export function UnionStrategy(key: string, obj: unknown, context: TypeContext, opts: UnionStrategyOpts): void  {
 
@@ -183,6 +216,26 @@ export function UnionStrategy(key: string, obj: unknown, context: TypeContext, o
     }
   } else {
     expandObjectTypes(Object.keys(m.model), m, foundSameShape);
+  }
+}
+
+
+function expandObjectTypesToSingleList(o1: ObjectMetaModel, list: MetaModel) {
+  for (const k of Object.keys(o1.model)) {
+    for (const currModel of o1.model[k]) {
+      let hasExactMatch = false;
+      // console.log(k,foundSameShape, currModel);
+      for (const foundM of list) {
+        const res = compare(currModel, foundM);
+        if (res.exactMatch) {
+          hasExactMatch = true;
+          break;
+        }
+      }
+      if (!hasExactMatch) {
+        list.push(currModel);
+      }
+    }
   }
 }
 

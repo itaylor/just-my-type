@@ -318,7 +318,6 @@ Deno.test('Optional Object Merge Strategy With low diff threshold', async () => 
   assertExists(err2);
 });
 
-
 Deno.test('Optional Object Merge Strategy With high diff threshold', async () => {
   const tg = new TypeGenerator('OptionalObject', { defaultObjectStrategy: 'optional', recordConversionThreshold: 10, objectDiffThreshold: 20, strategyHints: {} });
   
@@ -386,6 +385,110 @@ Deno.test('Optional Object Merge Strategy With high diff threshold', async () =>
   const err2 = await getExpectedError(() => tseval(code3));
   assertExists(err2);
 });
+
+Deno.test('Record strategy', async () => {
+  const tg = new TypeGenerator('RecordObject', { defaultObjectStrategy: 'record', strategyHints: {} });
+  const o1 = {
+    type: 'champion',
+    of: 'the',
+    world: true,
+  }
+  const o2 = {
+    type: 'fish',
+    with: 'some',
+    other: 'stuff',
+  }
+  const o3 = {
+    entirely: 'different',
+    object: 'with',
+    no: 'similar',
+    properties: true,
+    keys: 5,
+  }
+  tg.observe(o1);
+  tg.observe(o2);
+  tg.observe(o3);
+  const model = tg.readCurrentModel();
+  assertEquals(model.length, 1);
+
+  const type = tg.suggest();
+  console.log(type);
+
+  const code = `
+  ${type}
+  const o1: RecordObject = ${JSON.stringify(o1)};
+  const o2: RecordObject = ${JSON.stringify(o2)};
+  const o3: RecordObject = ${JSON.stringify(o3)};
+  // combined object of properties from o1 & o2 & o3 should work
+  const o4: RecordObject = {
+    with: 'the',
+    world: false,
+    keys: 4,
+  };
+  // I should be able to put in any key with a value of number, boolean, 
+  const o5: RecordObject = {
+    supa: 'awesome',
+    whatever: 9,
+    hello: false,
+  };
+  `
+  await tseval(code);
+
+  const code2 = `
+  ${type}
+  // null isn't a value of this type, adding it as a value should fail
+  const o4: OptionalObject = {
+    biff: null,
+  };`
+  const err = await getExpectedError(() => tseval(code2));
+  assertExists(err);
+
+  const code3 = `
+  ${type}
+  // string[] isn't a value of this type, adding it as a value should fail
+  const o4: OptionalObject = {
+    barf: ['something'],
+  };`
+  const err2 = await getExpectedError(() => tseval(code3));
+  assertExists(err2);
+});
+
+Deno.test('Record promotion from union', async () => {
+  const tg = new TypeGenerator('BasicObject', {defaultObjectStrategy:'union', strategyHints: {}, recordConversionThreshold: 3});
+  tg.observe({ a: 'a' });
+  tg.observe({ b: 'b' });
+  tg.observe({ c: 'c' });
+  assertEquals(tg.readCurrentModel().length, 3);
+  tg.observe({ d: 'd'});
+  console.log(tg.readCurrentModel().length, 1);
+  const type = tg.suggest();
+  console.log(type);
+
+  const code = `
+  ${type}
+  const object1: BasicObject = { f: 'f'};
+  `
+  await tseval(code);
+});
+
+Deno.test('Record promotion from optional', async () => {
+  const tg = new TypeGenerator('BasicObject', { defaultObjectStrategy: 'optional', strategyHints: {}, objectDiffThreshold:2, recordConversionThreshold: 3 });
+  tg.observe({ a: 'a', b: 'b', 'c': 'c' });
+  tg.observe({ b: 9 });
+  tg.observe({ c: false });
+  assertEquals(tg.readCurrentModel().length, 3);
+  tg.observe({ d: 'd' });
+  console.log(tg.readCurrentModel().length, 1);
+  const type = tg.suggest();
+  console.log(type);
+
+  const code = `
+  ${type}
+  const object1: BasicObject = { f: 'f' };
+  const object2: BasicObject = { g: false };
+  `
+  await tseval(code);
+})
 
 function tseval(code: string) {
   return import('data:application/typescript;base64,' + btoa(code));

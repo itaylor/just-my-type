@@ -47,7 +47,6 @@ export type ObjectMetaModel = {
 export type RecordMetaModel = {
   name: string,
   type: 'record',
-  keys: (BasicType | CompoundType)[]  // todo: maybe should be string | symbol | number instead of all types?
   values: MetaModel
 }
 
