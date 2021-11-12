@@ -5,10 +5,24 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Deno test debug",
+      "type": "pwa-node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "test",
+        "--inspect-brk",
+        "-A",
+        "${file}"
+      ],
+      "attachSimplePort": 9229
+    },
+    {
       "request": "launch",
       "name": "Launch Program",
       "type": "pwa-node",
-      "program": "${workspaceFolder}/mainest.test.ts",
+      "program": "${workspaceFolder}/main.test.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "deno",
       "runtimeArgs": [
