@@ -115,25 +115,13 @@ export function objectCompare(o1: ObjectMetaModel, o2: ObjectMetaModel): ObjectC
       unMatchedKeys.push(k);
     } else {
       let hadMatch = true;
-      // // TODO: should I be looping on these here too?
-      // This is garbage.  The below double loop makes tests fail, because it picks keys
-      // across different models, which should not be possible, but the loop
-      // has to be on keys to look up the models by key.
-      // const result = compare(o1.model[k][0], o2.model[k][0]);
-      // if (result.exactMatch) {
-      //   hadMatch = true;
-      // }
-      const oldWay = compare(o1.model[k][0], o2.model[k][0]);
- 
+
+      // for a key in o1, each model must have a match in one of the models in o2
+      // If not, then the key is not a match
       for (const m of o1.model[k]) {
         let hadMatchInThisModel = false;
         for (const cm of currModel) {
           const result = compare(m, cm);
-          if (result.exactMatch !== oldWay.exactMatch) {
-            console.log('Data Dump:');
-            console.log('key', k);
-            console.log('Data Dump:', k, '\no1: \n', JSON.stringify(o1, null, 2), '\no2:\n', JSON.stringify(o2, null, 2), `\nm:\n`, m, `\ncm:\n`, cm);
-          }
           if (!result.exactMatch) {
             hadMatchInThisModel = true;
             break;
