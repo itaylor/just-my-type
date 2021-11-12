@@ -167,9 +167,31 @@ Deno.test('Object comparison, different objects', () => {
   const result = objectCompare(obj1, obj2);
   assertEquals(result.compatibleType, true);
   assertEquals(result.exactMatch, false);
+  assertEquals(result.diff, 2);
+  assertEquals(result.unMatchedKeys.length, 0);
+  assertEquals(result.missingKeys.length, 1);
+  assertEquals(result.missingKeys[0], 'foo');
+  assertEquals(result.extraKeys.length, 1);
+  assertEquals(result.extraKeys[0], 'bar');
+});
+
+Deno.test('Object comparison, same object different type ', () => {
+  const obj3: ObjectMetaModel = {
+    name: 'obj3',
+    optionals: {},
+    type: 'object',
+    model: {
+      foo: [{ type: 'boolean', name: 'bool1' }]
+    }
+  }
+  const result = objectCompare(obj1, obj3);
+
+  assertEquals(result.compatibleType, true);
+  assertEquals(result.exactMatch, false);
   assertEquals(result.diff, 1);
+  assertEquals(result.missingKeys.length, 0);
+  assertEquals(result.extraKeys.length, 0);
   assertEquals(result.unMatchedKeys.length, 1);
   assertEquals(result.unMatchedKeys[0], 'foo');
 });
-
 

@@ -1,6 +1,6 @@
-import { TypeContext, StrategyHints, BasicType, BasicMetaModel, MetaModel, RecordMetaModel, OptionalStrategyOpts, UnionStrategyOpts, ObjectMetaModel } from './types.ts';
+import { CompareMatch, TypeContext, StrategyHints, BasicType, BasicMetaModel, MetaModel, RecordMetaModel, OptionalStrategyOpts, UnionStrategyOpts, ObjectMetaModel, ConcreteMetaModel } from './types.ts';
 import { findBestModel, getRuntimeType, createMetaModel, shallowObjectSameShape } from './utils.ts';
-import { compare } from './compare.ts';
+import { compare, objectCompare } from './compare.ts';
 
 export function observeOne(key: string, obj: unknown, context: TypeContext, opts: StrategyHints) {
   if (!context[key]) {
@@ -73,44 +73,49 @@ export function ArrayStrategy(key: string, obj: unknown, context: TypeContext, o
 // }
 
 export function OptionalStrategy(key: string, obj: unknown, context: TypeContext, opts: OptionalStrategyOpts ): void {
-  const mm = context[key];
-
-  const m = createMetaModel(key, obj, context) as ObjectMetaModel;
-  const o = obj as Record<string, unknown>;
+  
+  const cm = createMetaModel(key, obj, context) as ObjectMetaModel;
   const existingModel = context[key];
-  if (!existingModel.length) {
-    context[key] = [m];
+  let bestMatch: CompareMatch | null = null;
+  let bestMatchModel: ObjectMetaModel | null = null;
+  for (const m2 of existingModel) {
+    const result = compare(cm, m2);
+    if (result.exactMatch) {
+      return; // already exists, do nothing
+    }else if (result.compatibleType) {
+      if (bestMatch === null || bestMatch.diff > result.diff) {
+        bestMatch = result;
+        bestMatchModel = m2 as ObjectMetaModel;
+      }
+    }
+  }
+  if (!bestMatch || !bestMatchModel) { //No match found, add the model.
+    existingModel.push(cm);
     return;
   }
-  // if (m.model.type === 'object' && m.existing && m.diff < opts.objectDiffThreshold) {
-  //   //Expand the Add optional properties
-  //   if (m.diff === 0) {
-  //     // do nothing.
-  //   } else {
-  //     const o = obj as Record<string, unknown>;
-  //     // Go through the object's keys, if they don't exist in the current model, mark them as optional
-  //     for (const k of Object.keys(o)) {
-  //       if (!m.model.model[k]) {
-  //         m.model.optionals[k] = true;
-  //       }
-  //       // By observing each value, we expand the allowed types. 
-  //       const propKey = `${key}.${k}`;
-  //       observeOne(propKey, o[k], context, opts);
-  //       m.model.model[k] = context[propKey];
-  //     }
-  //   } 
-  // } else if (m.model.type === 'object') {
-  //   if (mm.length < opts.recordConversionThreshold) {
-  //     mm.push(m.model);
-  //   } else {
-  //     // we've passed the configured number of types to store, we will need to convert this type to a record
-  //     // do this by specifying the strategy for the key and running back through the observer.
-  //     opts.strategyHints[key] = 'record';
-  //     observeOne(key, obj, context, opts);
-  //   }
-  // } else {
-  //   mm.push(m.model);
-  // }
+  if (bestMatch.diff < opts.objectDiffThreshold) {
+    // Go through the object's keys, if they don't exist in the current model, mark them as optional
+    const { missingKeys, unMatchedKeys, extraKeys } = objectCompare(cm, bestMatchModel);
+    for (const key of missingKeys) {
+      bestMatchModel.model[key] = cm.model[key];
+      bestMatchModel.optionals[key] = true;
+    }
+    for (const key of extraKeys) {
+      // convert fields that the current object doesn't have to be optionals
+      bestMatchModel.optionals[key] = true;
+    }
+    // Any types that didn't match get expanded.
+    expandObjectTypes(unMatchedKeys, cm, bestMatchModel);   
+  } else {
+    if (existingModel.length < opts.recordConversionThreshold) {
+      existingModel.push(cm);
+    } else {
+      // we've passed the configured number of types to store, we will need to convert this type to a record
+      // do this by specifying the strategy for the key and running back through the observer.
+      opts.strategyHints[key] = 'record';
+      observeOne(key, obj, context, opts);
+    }
+  }
 }
 
 export function RecordStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints ): void {
@@ -177,22 +182,26 @@ export function UnionStrategy(key: string, obj: unknown, context: TypeContext, o
       observeOne(key, obj, context, opts);
     }
   } else {
-    for (const k of Object.keys(o)) {
-      for (const currModel of m.model[k]) {
-        let hasExactMatch = false;
-       // console.log(k,foundSameShape, currModel);
-        for (const foundM of foundSameShape.model[k]) {
-          const res = compare(currModel, foundM);
-          if (res.exactMatch) {
-            console.log('is Exact Match', currModel, foundM);
-            hasExactMatch = true;
-          }
+    expandObjectTypes(Object.keys(m.model), m, foundSameShape);
+  }
+}
+
+function expandObjectTypes(keys: string[], o1: ObjectMetaModel, o2: ObjectMetaModel) {
+  for (const k of keys) {
+    for (const currModel of o1.model[k]) {
+      let hasExactMatch = false;
+      // console.log(k,foundSameShape, currModel);
+      for (const foundM of o2.model[k]) {
+        const res = compare(currModel, foundM);
+        if (res.exactMatch) {
+          console.log('is Exact Match', currModel, foundM);
+          hasExactMatch = true;
         }
-        if (!hasExactMatch) {
-          console.log('Not Exact Match', JSON.stringify(foundSameShape.model[k], null, 2));
-          foundSameShape.model[k].push(currModel);
-          console.log('After Match', JSON.stringify(foundSameShape.model[k], null, 2));
-        }
+      }
+      if (!hasExactMatch) {
+        console.log('Not Exact Match', JSON.stringify(o2.model[k], null, 2));
+        o2.model[k].push(currModel);
+        console.log('After Match', JSON.stringify(o2.model[k], null, 2));
       }
     }
   }

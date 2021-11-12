@@ -210,74 +210,182 @@ Deno.test('Empty Array Test', async () => {
   await tseval(code);
 });
 
-// Deno.test('Optional Object Merge Strategy', async () => {
-//   const tg = new TypeGenerator('BasicObject', { defaultObjectStrategy: 'optional', recordConversionThreshold: 10, objectDiffThreshold: 5, strategyHints: {}});
-//   tg.observe(object1);
-//   tg.observe(object2);
-//   tg.observe(object3);
-//   tg.observe(object4);
-//   // console.log(tg.readCurrentModel());
-//   // assertEquals(tg.readCurrentModel().length, 3);
-//   const type = tg.suggest();
-//   console.log(type);
+Deno.test('Optional Object Merge Strategy', async () => {
+  const tg = new TypeGenerator('BasicObject', { defaultObjectStrategy: 'optional', recordConversionThreshold: 10, objectDiffThreshold: 5, strategyHints: {}});
+  tg.observe(object1);
+  tg.observe(object2);
+  tg.observe(object3);
+  tg.observe(object4);
+  assertEquals(tg.readCurrentModel().length, 1);
+  const type = tg.suggest();
+  // console.log(type);
   
 
-//   const code = `
-//   ${type}
-//   const object1: BasicObject = ${JSON.stringify(object1)};
-//   const object2: BasicObject = ${JSON.stringify(object2)};
-//   const object3: BasicObject = ${JSON.stringify(object3)};
-//   const object4: BasicObject = ${JSON.stringify(object4)};
-//   const object5: BasicObject = {
-//   str: 'AnotherString',
-//   num: 1,
-//   bool: false,
-//   dynamicProp: 'something', // This is an object shape that was never in the original 4, but is allowed by 'optional' merge strategy' 
-//   extraProp: true
-// }
-//   `
-//   await tseval(code);
+  const code = `
+  ${type}
+  const object1: BasicObject = ${JSON.stringify(object1)};
+  const object2: BasicObject = ${JSON.stringify(object2)};
+  const object3: BasicObject = ${JSON.stringify(object3)};
+  const object4: BasicObject = ${JSON.stringify(object4)};
+  const object5: BasicObject = {
+  str: 'AnotherString',
+  num: 1,
+  bool: false,
+  dynamicProp: 'something', // This is an object shape that was never in the original 4, but is allowed by 'optional' merge strategy' 
+  extraProp: true
+}
+  `
+  await tseval(code);
 
-//   const code2 = `
-//   ${type}
-//   const object1: BasicObject = ${JSON.stringify(object1)};
-//   const object2: BasicObject = { junk: true, shouldFail: true };
-//   `
-//   const error = await getExpectedError(() => tseval(code2));
-//   assertExists(error);
-//   assertStringIncludes(error?.message, `Type '{ junk: boolean; shouldFail: boolean; }' is not assignable to type 'BasicObject'.`);
-//   console.log('finished ok!');
-// });
+  const code2 = `
+  ${type}
+  const object1: BasicObject = ${JSON.stringify(object1)};
+  const object2: BasicObject = { junk: true, shouldFail: true };
+  `
+  const error = await getExpectedError(() => tseval(code2));
+  assertExists(error);
+  assertStringIncludes(error?.message, `Type '{ junk: boolean; shouldFail: boolean; }' is not assignable to type 'BasicObject'.`);
+  console.log('finished ok!');
+});
 
-// Deno.test('Optional Object Merge Strategy With diff threshold', async () => {
-//   const tg = new TypeGenerator('BasicObject', { defaultObjectStrategy: 'optional', recordConversionThreshold: 10, objectDiffThreshold: 5, strategyHints: {} });
+
+Deno.test('Optional Object Merge Strategy With low diff threshold', async () => {
+  const tg = new TypeGenerator('OptionalObject', { defaultObjectStrategy: 'optional', recordConversionThreshold: 10, objectDiffThreshold: 8, strategyHints: {} });
+
+  const o1 = {
+    type: 'champion',
+    of: 'the',
+    world: true,
+  }
+  const o2 = {
+    type: 'fish',
+    with: 'some',
+    other: 'stuff',
+  }
+  const o3 = {
+    entirely: 'different',
+    object: 'with',
+    no: 'similar',
+    properties: true,
+    keys: 5,
+  }
+
+  tg.observe(o1);
+  tg.observe(o2);
+  tg.observe(o3);
+  const model = tg.readCurrentModel();
+  assertEquals(model.length, 2);
+
+  const type = tg.suggest();
+  console.log(type);
+
+  const code = `
+  ${type}
+  const o1: OptionalObject = ${JSON.stringify(o1)};
+  const o2: OptionalObject = ${JSON.stringify(o2)};
+  const o3: OptionalObject = ${JSON.stringify(o3)};
+  // combined object of properties from o1 & o2 & o3 should fail
+  const o4: OptionalObject = {
+    with: 'the',
+    world: false,
+    keys: 4,
+  };`
+  const e = await getExpectedError(() => tseval(code));
+  assertExists(e);
+
+  const code2 = `
+  ${type}
+  // combined object of properties from o1 & o2 & o3 but wrong types should fail
+  const o4: OptionalObject = {
+    type: 'champion',
+    with: 'the',
+    world: false,
+    keys: false,
+  };`
+  const err = await getExpectedError(() => tseval(code2));
+  assertExists(err);
+
+  const code3 = `
+  ${type}
+  // combined object with extra properties should fail fail
+  const o4: OptionalObject = {
+    type: 'champion',
+    with: 'the',
+    world: false,
+    keys: false,
+  };`
+  const err2 = await getExpectedError(() => tseval(code3));
+  assertExists(err2);
+});
+
+
+Deno.test('Optional Object Merge Strategy With high diff threshold', async () => {
+  const tg = new TypeGenerator('OptionalObject', { defaultObjectStrategy: 'optional', recordConversionThreshold: 10, objectDiffThreshold: 20, strategyHints: {} });
   
-//   const o1 = {
-//     type: 'champion',
-//     of: 'the',
-//     world: true,
-//   }
-//   const o2 = {
-//     type: 'fish',
-//     with: 'some',
-//     other: 'stuff',
-//   }
-//   const o3 = {
-//     entirely: 'different',
-//     object: 'with',
-//     no: 'similar',
-//     properties: true,
-//     keys: 5,
-//   }
+  const o1 = {
+    type: 'champion',
+    of: 'the',
+    world: true,
+  }
+  const o2 = {
+    type: 'fish',
+    with: 'some',
+    other: 'stuff',
+  }
+  const o3 = {
+    entirely: 'different',
+    object: 'with',
+    no: 'similar',
+    properties: true,
+    keys: 5,
+  }
     
-//   tg.observe(o1);
-//   tg.observe(o2);
-//   tg.observe(o3);
-//   console.log(tg.readCurrentModel());
+  tg.observe(o1);
+  tg.observe(o2);
+  tg.observe(o3);
+  const model =tg.readCurrentModel();
+  assertEquals(model.length, 1);
   
-//   console.log(tg.suggest());
+  const type = tg.suggest();
+  console.log(type);
 
-// });
+  const code = `
+  ${type}
+  const o1: OptionalObject = ${JSON.stringify(o1)};
+  const o2: OptionalObject = ${JSON.stringify(o2)};
+  const o3: OptionalObject = ${JSON.stringify(o3)};
+  // combined object of properties from o1 & o2 & o3 should work
+  const o4: OptionalObject = {
+    with: 'the',
+    world: false,
+    keys: 4,
+  };`
+  await tseval(code);
+
+  const code2 = `
+  ${type}
+  // combined object of properties from o1 & o2 & o3 but wrong types should fail
+  const o4: OptionalObject = {
+    type: 'champion',
+    with: 'the',
+    world: false,
+    keys: false,
+  };`
+  const err = await getExpectedError(() => tseval(code2));
+  assertExists(err);
+
+  const code3 = `
+  ${type}
+  // combined object with extra properties should fail fail
+  const o4: OptionalObject = {
+    type: 'champion',
+    with: 'the',
+    world: false,
+    keys: false,
+  };`
+  const err2 = await getExpectedError(() => tseval(code3));
+  assertExists(err2);
+});
 
 function tseval(code: string) {
   return import('data:application/typescript;base64,' + btoa(code));

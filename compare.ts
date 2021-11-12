@@ -19,23 +19,6 @@ export function compare(m1: ConcreteMetaModel, m2: ConcreteMetaModel): CompareMa
       cm.diff === 0;
     } else if (m1.type === 'object' && m2.type === 'object') {
       cm = objectCompare(m1, m2);
-      // cm.compatibleType === true;
-      // const m1Keys = Object.keys(m1.model);
-      // for (const k of m1Keys) {
-      //   if (!m2.model[k]) {
-      //     cm.diff++;
-      //     cm.exactMatch = false;
-      //   } else {
-      //     // TODO: should I be looping on these here too?
-      //     const result = compare(m1.model[k][0], m2.model[k][0]);
-      //     if (!result.exactMatch) {
-      //       cm.diff += result.diff;
-      //     }
-      //   }
-      // }
-      // if (cm.diff === 0) {
-      //   cm.exactMatch = true;
-      // }
     } else if (m1.type === 'array' && m2.type === 'array') {
       cm = arrayCompare(m1, m2);
     } else {
@@ -84,7 +67,9 @@ export function arrayCompare(a1: ArrayMetaModel, a2: ArrayMetaModel): ArrayCompa
 }
 
 type ObjectCompareMatch = CompareMatch & {
-  unMatchedKeys: string[]
+  unMatchedKeys: string[],
+  missingKeys: string[],
+  extraKeys: string[]
 }
 
 // For each key/value in o1.model, there must be a matching key/value in o2.model. 
@@ -97,22 +82,17 @@ export function objectCompare(o1: ObjectMetaModel, o2: ObjectMetaModel): ObjectC
     diff: 0,
     compatibleType: true,
     unMatchedKeys: [],
+    missingKeys: [],
+    extraKeys:[]
   }
-
-  // Premature? optimization:
-  // if the object shapes don't match, we don't have to do deep comparison of the types.
-  // const diffKeys = keyDifference(o1, o2);
-  // if (diffKeys.length > 0) {
-  //   cm.diff = diffKeys.length;
-  //   cm.unMatchedKeys = diffKeys;
-  //   return cm;
-  // }
   
   const unMatchedKeys = [];
+  const missingKeys = [];
+  const extraKeys = [];
   for (const k of Object.keys(o1.model)) {
     const currModel = o2.model[k];
     if (!currModel && !o2.optionals[k]) {
-      unMatchedKeys.push(k);
+      missingKeys.push(k)
     } else {
       let hadMatch = true;
 
@@ -122,7 +102,7 @@ export function objectCompare(o1: ObjectMetaModel, o2: ObjectMetaModel): ObjectC
         let hadMatchInThisModel = false;
         for (const cm of currModel) {
           const result = compare(m, cm);
-          if (!result.exactMatch) {
+          if (result.exactMatch) {
             hadMatchInThisModel = true;
             break;
           }
@@ -136,8 +116,15 @@ export function objectCompare(o1: ObjectMetaModel, o2: ObjectMetaModel): ObjectC
       }
     }
   }
+  for (const k of Object.keys(o2.model)) {
+    if (!o1.model[k]) {
+      extraKeys.push(k);
+    }
+  }
+  cm.missingKeys = missingKeys;
   cm.unMatchedKeys = unMatchedKeys;
-  cm.diff = unMatchedKeys.length;
-  cm.exactMatch = cm.diff === 0
+  cm.extraKeys = extraKeys;
+  cm.diff = unMatchedKeys.length + missingKeys.length + extraKeys.length;
+  cm.exactMatch = cm.diff === 0;
   return cm;
 }
