@@ -2,12 +2,6 @@ import { assertEquals, assertExists, assertStringIncludes } from "https://deno.l
 import TypeGenerator from './main.ts';
 import { ArrayMetaModel } from './types.ts';
 
-// (Deno.test as unknown) = async (name: string, fn: () => void) => {
-//   console.log(name);
-//   await fn();
-//   console.log(`${name} ok`);
-// };
-
 const object1 = {
   str: 'string',
   num: 9,
@@ -41,10 +35,8 @@ Deno.test('Basic object type test', async () => {
   tg.observe(object2);
   tg.observe(object3);
   tg.observe(object4);
-  console.log(tg.readCurrentModel());
   assertEquals(tg.readCurrentModel().length, 2);
   const type = tg.suggest();
-  console.log(type);
 
   const code = `
   ${type}
@@ -63,18 +55,15 @@ Deno.test('Basic object type test', async () => {
   const error = await getExpectedError(() => tseval(code2));
   assertExists(error);
   assertStringIncludes(error?.message, `Type '{ junk: boolean; shouldFail: boolean; }' is not assignable to type 'BasicObject'.`);
-  //console.log('finished ok!');
 })
 
 Deno.test('Basic array type test', async () => {
   const tg = new TypeGenerator('BasicArray');
   tg.observe([object1, object2]);
   tg.observe([object3, object4]);
-  console.log(JSON.stringify(tg.readCurrentModel(), null, 2));
   assertEquals(tg.readCurrentModel().length, 1);
   assertEquals((tg.readCurrentModel()[0] as ArrayMetaModel).items.length, 2);
   const type = tg.suggest();
-  console.log(type);
 
   const code = `
   ${type}
@@ -97,7 +86,6 @@ Deno.test('Basic array type test', async () => {
   const error = await getExpectedError(() => tseval(code2));
   assertExists(error);
   assertStringIncludes(error?.message, `Type '{ junk: boolean; shouldFail: boolean; }' is not assignable to type `);
-  //console.log('finished ok!');
 })
 
 const testObject1 = {
@@ -163,11 +151,7 @@ Deno.test('Nested array object test', async () => {
   tg.observe(testObject1);
   tg.observe(testObject2);
   tg.observe(testObject3);
-  // console.log(JSON.stringify(tg.readCurrentModel(), null, 2));
-  // assertEquals(tg.readCurrentModel().length, 1);
-  // assertEquals((tg.readCurrentModel()[0] as any).model.items.length, 3);
   const type = tg.suggest();
-  console.log(type);
 
   const code = `
   ${type}
@@ -195,7 +179,6 @@ Deno.test('Nested array object test', async () => {
   const error = await getExpectedError(() => tseval(code2));
   assertExists(error);
   assertStringIncludes(error?.message, `Type 'null' is not assignable to type 'string[]'`);
-  console.log('finished ok!');
 })
 
 Deno.test('Empty Array Test', async () => {
@@ -218,8 +201,6 @@ Deno.test('Optional Object Merge Strategy', async () => {
   tg.observe(object4);
   assertEquals(tg.readCurrentModel().length, 1);
   const type = tg.suggest();
-  // console.log(type);
-  
 
   const code = `
   ${type}
@@ -245,7 +226,6 @@ Deno.test('Optional Object Merge Strategy', async () => {
   const error = await getExpectedError(() => tseval(code2));
   assertExists(error);
   assertStringIncludes(error?.message, `Type '{ junk: boolean; shouldFail: boolean; }' is not assignable to type 'BasicObject'.`);
-  console.log('finished ok!');
 });
 
 
@@ -277,8 +257,6 @@ Deno.test('Optional Object Merge Strategy With low diff threshold', async () => 
   assertEquals(model.length, 2);
 
   const type = tg.suggest();
-  console.log(type);
-
   const code = `
   ${type}
   const o1: OptionalObject = ${JSON.stringify(o1)};
@@ -346,8 +324,7 @@ Deno.test('Optional Object Merge Strategy With high diff threshold', async () =>
   assertEquals(model.length, 1);
   
   const type = tg.suggest();
-  console.log(type);
-
+  
   const code = `
   ${type}
   const o1: OptionalObject = ${JSON.stringify(o1)};
@@ -412,7 +389,6 @@ Deno.test('Record strategy', async () => {
   assertEquals(model.length, 1);
 
   const type = tg.suggest();
-  console.log(type);
 
   const code = `
   ${type}
@@ -460,9 +436,7 @@ Deno.test('Record promotion from union', async () => {
   tg.observe({ c: 'c' });
   assertEquals(tg.readCurrentModel().length, 3);
   tg.observe({ d: 'd'});
-  console.log(tg.readCurrentModel().length, 1);
   const type = tg.suggest();
-  console.log(type);
 
   const code = `
   ${type}
@@ -478,9 +452,7 @@ Deno.test('Record promotion from optional', async () => {
   tg.observe({ c: false });
   assertEquals(tg.readCurrentModel().length, 3);
   tg.observe({ d: 'd' });
-  console.log(tg.readCurrentModel().length, 1);
   const type = tg.suggest();
-  console.log(type);
 
   const code = `
   ${type}

@@ -1,6 +1,6 @@
 
-import { MetaModel, SuggestOptions, StrategyHints, UnionStrategyOpts, OptionalStrategyOpts } from './types.ts';
-import observeOne from './Strategies.ts';
+import { MetaModel, StrategyHints, UnionStrategyOpts, OptionalStrategyOpts } from './types.ts';
+import observeOne from './strategies.ts';
 import { printType } from './printModel.ts';
 
 type TypeGenOptions = StrategyHints | UnionStrategyOpts | OptionalStrategyOpts;

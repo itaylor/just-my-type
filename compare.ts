@@ -1,5 +1,4 @@
 import { ConcreteMetaModel, CompareMatch, ArrayMetaModel, ObjectMetaModel, MetaModel,  } from './types.ts';
-import { keyDifference } from './utils.ts';
 
 export function compare(m1: ConcreteMetaModel, m2: ConcreteMetaModel): CompareMatch {
   let cm: CompareMatch = {
@@ -7,7 +6,6 @@ export function compare(m1: ConcreteMetaModel, m2: ConcreteMetaModel): CompareMa
     diff: 0,
     compatibleType: false
   }
-  //console.log('comparing', m1, m2);
   if (m1.type === m2.type) {
     if (m1.type === 'record' && m2.type === 'record') {
       cm.compatibleType = true;
@@ -29,7 +27,6 @@ export function compare(m1: ConcreteMetaModel, m2: ConcreteMetaModel): CompareMa
     cm.compatibleType = false;
     cm.diff++;
   }
-  //console.log('compare result', cm);
   return cm;
 }
 

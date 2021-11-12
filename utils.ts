@@ -1,5 +1,5 @@
-import { BasicType, ConcreteMetaModel, TypeContext, MetaModel, CompoundType, MatchModel, CompareMatch, StrategyHints, ObjectMetaModel } from './types.ts';
-import { observeOne } from './Strategies.ts';
+import { BasicType, ConcreteMetaModel, TypeContext, MetaModel, CompoundType, StrategyHints, ObjectMetaModel } from './types.ts';
+import { observeOne } from './strategies.ts';
 import { compare } from './compare.ts';
 
 export function getRuntimeType(arg: unknown): BasicType | CompoundType {
@@ -55,25 +55,6 @@ function getCompoundMetaModel(name: string, type: CompoundType, value: unknown, 
   throw new Error(`unsupported type ${type}`);
 } 
 
-
-export function findBestModel(name: string, item: unknown, context: TypeContext): MatchModel {
-  const existingModel: MetaModel = context[name];
-  const m = createMetaModel(name, item, context);
-  let bestMatch: MatchModel = { model: m, diff: 0, existing: false };
-  if (!existingModel) {
-    return bestMatch;
-  }
-  for (const cm of existingModel) {
-    const result = compare(m, cm);
-    if (result.exactMatch) {
-      return { model: cm, diff: 0, existing: true };
-    } else if (result.compatibleType && result.diff < bestMatch.diff) {
-      bestMatch = { model: cm, diff: result.diff, existing: true };
-    }
-  }
-  return bestMatch;
-}
-
 export function shallowObjectSameShape(o1: ObjectMetaModel, o2: ObjectMetaModel): boolean {
   const k1 = Object.keys(o1.model);
   const k2 = Object.keys(o2.model);
@@ -104,4 +85,40 @@ export function keyDifference(o1: ObjectMetaModel, o2: ObjectMetaModel): string[
     }
   }
   return [...diffKeys];
+}
+
+
+export function expandObjectTypesToSingleList(o1: ObjectMetaModel, list: MetaModel) {
+  for (const k of Object.keys(o1.model)) {
+    for (const currModel of o1.model[k]) {
+      let hasExactMatch = false;
+      for (const foundM of list) {
+        const res = compare(currModel, foundM);
+        if (res.exactMatch) {
+          hasExactMatch = true;
+          break;
+        }
+      }
+      if (!hasExactMatch) {
+        list.push(currModel);
+      }
+    }
+  }
+}
+
+export function expandObjectTypes(keys: string[], o1: ObjectMetaModel, o2: ObjectMetaModel) {
+  for (const k of keys) {
+    for (const currModel of o1.model[k]) {
+      let hasExactMatch = false;
+      for (const foundM of o2.model[k]) {
+        const res = compare(currModel, foundM);
+        if (res.exactMatch) {
+          hasExactMatch = true;
+        }
+      }
+      if (!hasExactMatch) {
+        o2.model[k].push(currModel);
+      }
+    }
+  }
 }
