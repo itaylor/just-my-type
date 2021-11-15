@@ -1,4 +1,4 @@
-import { BasicType, ConcreteMetaModel, TypeContext, MetaModel, CompoundType, StrategyHints, ObjectMetaModel } from './types.ts';
+import { BasicType, ConcreteMetaModel, MetaModel, CompoundType, StrategyHints, ObjectMetaModel } from './types.ts';
 import { observeOne } from './strategies.ts';
 import { compare } from './compare.ts';
 
@@ -19,10 +19,10 @@ export function getRuntimeType(arg: unknown): BasicType | CompoundType {
   return t;
 }
 
-export function createMetaModel(name: string, value: unknown, context: TypeContext) {
+export function createMetaModel(name: string, value: unknown) {
   const type: BasicType | CompoundType = getRuntimeType(value);
   if (type === 'array' || type === 'object' || type === 'record') {
-    return getCompoundMetaModel(name, type, value, context);
+    return getCompoundMetaModel(name, type, value);
   }
   return getBasicMetaModel(name, type);
 }
@@ -34,26 +34,34 @@ function getBasicMetaModel(name: string, type: BasicType): ConcreteMetaModel {
   };
 }
 
-function getCompoundMetaModel(name: string, type: CompoundType, value: unknown, context: TypeContext): ConcreteMetaModel {
+function getCompoundMetaModel(name: string, type: CompoundType, value: unknown): ConcreteMetaModel {
   if (type === 'object') {
     const o: Record<string, MetaModel> = {};
-    Object.keys(value as Record<string, unknown>).forEach((key) => {
+    Object.keys(value as Record<string, unknown>)
+    .sort() // makes JSON comparison possible
+    .forEach((key) => {
       const v = (value as Record<string, unknown>)[key];
-      o[key] = [createMetaModel(`${name}.${key}`, v, context)];
+      o[key] = [createMetaModel(`${name}.${key}`, v)];
     });
     return { name, type, model: o, optionals: {} }
   }
   if (type === 'array') {
-    const tempCache: Record<string, MetaModel> = { [name]: [] };
     const arrKey = `${name}[]`;
+    const tempCache: Record<string, MetaModel> = { [arrKey]: [] };
     const arr = value as Array<unknown>;
     for (const o of arr) {
-      observeOne(arrKey, o, tempCache, { defaultObjectStrategy: 'union', strategyHints: {}, recordConversionThreshold: 10 } as StrategyHints);
+      const cm = createMetaModel(arrKey, o);
+      // This prevents duplicate types within the array.
+      observeOne(cm, tempCache, { defaultObjectStrategy: 'union', strategyHints: {}, recordConversionThreshold: 10 } as StrategyHints);
     }
-    return { name: name, type: 'array', items: tempCache[arrKey] };
+    return { name: name, type: 'array', items: tempCache[arrKey].sort(sorter) };
   }
   throw new Error(`unsupported type ${type}`);
 } 
+
+function sorter(a: ConcreteMetaModel, b: ConcreteMetaModel) {
+  return a.type < b.type ? -1 : a.type === b.type ? 0 : 1;
+}
 
 export function shallowObjectSameShape(o1: ObjectMetaModel, o2: ObjectMetaModel): boolean {
   const k1 = Object.keys(o1.model);

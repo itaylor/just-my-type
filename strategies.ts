@@ -1,74 +1,66 @@
-import { CompareMatch, TypeContext, StrategyHints, BasicType, BasicMetaModel, MetaModel, RecordMetaModel, OptionalStrategyOpts, UnionStrategyOpts, ObjectMetaModel, ConcreteMetaModel } from './types.ts';
-import { getRuntimeType, createMetaModel, shallowObjectSameShape, expandObjectTypes, expandObjectTypesToSingleList } from './utils.ts';
+import {  ArrayMetaModel, CompareMatch, TypeContext, StrategyHints, BasicMetaModel, MetaModel, RecordMetaModel, OptionalStrategyOpts, UnionStrategyOpts, ObjectMetaModel, ConcreteMetaModel } from './types.ts';
+import { shallowObjectSameShape, expandObjectTypes, expandObjectTypesToSingleList } from './utils.ts';
 import { compare, objectCompare } from './compare.ts';
 
-export function observeOne(key: string, obj: unknown, context: TypeContext, opts: StrategyHints) {
-  if (!context[key]) {
-    context[key] = [];
+export function observeOne(cm: ConcreteMetaModel, context: TypeContext, opts: StrategyHints) {
+  if (!context[cm.name]) {
+    context[cm.name] = [];
   }
-  const strategy = selectStrategy(key, obj, context, opts);
-  strategy(key, obj, context, opts as any);
-  return context[key];
+  if (cm.type === 'object') {
+    const strategyName = opts.strategyHints[cm.name] || opts.defaultObjectStrategy;
+    if (strategyName === 'optional') {
+      return optionalStrategy(cm, context, opts as OptionalStrategyOpts);
+    } 
+    if (strategyName === 'record') { 
+      return recordStrategy(cm, context, opts);
+    }
+    if (strategyName === 'union') {
+      return unionStrategy(cm, context, opts as UnionStrategyOpts);
+    }
+    throw new Error(`Unsupported object strategy ${strategyName}`);
+  }
+  if (cm.type === 'array') {
+    return arrayStrategy(cm, context, opts);
+  }
+  if (cm.type !== 'record') {
+    return basicStrategy(cm, context);
+  }
+  throw new Error(`Unsupported type: + ${cm.type}`);
 }
-
 export default observeOne;
+ 
+export function basicStrategy(m: BasicMetaModel, context: TypeContext): void {
 
-function selectStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints) {
-  const type = getRuntimeType(obj);
-  if (type === 'object') {
-    const strategyName = opts.strategyHints[key] || opts.defaultObjectStrategy;
-    return strategyMap[strategyName];
-  }
-  if (type === 'array') {
-    return strategyMap.array;
-  } else {
-    return basicStrategy;
-  }
-}
-
-const strategyMap = {
-  basic: basicStrategy,
-  array: arrayStrategy,
-  union: unionStrategy,
-  optional: optionalStrategy,
-  record: recordStrategy,
-}
-
-export function basicStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints): void {
-  const basicType: BasicMetaModel = { name: key, type: getRuntimeType(obj) as BasicType };
-  const mm = context[key];
+  const mm = context[m.name];
   for (const cm of mm) {
-    const res = compare(basicType, cm);
+    const res = compare(m, cm);
     if (res.exactMatch) {
       // type already exists in the model, do nothing
       return;
     }
   }
-  context[key] = [basicType];
+  context[m.name].push(m);
 } 
 
-export function arrayStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints ): void {
-  const cm = createMetaModel(key, obj, context);
+export function arrayStrategy(cm: ArrayMetaModel, context: TypeContext, opts: StrategyHints ): void {
  
-  const existingModel = context[key];
+  const existingModel = context[cm.name];
   for (const m of existingModel) {
     if (compare(cm, m).exactMatch) {
       //match already exists, nothing to do.
       return;
     }
   }
-  const arrKey = `${key}[]`;
-  const arr = obj as Array<unknown>;
-  for (const o of arr) {
-    observeOne(arrKey, o, context, opts);
+  const arrKey = `${cm.name}[]`;
+  for (const o of cm.items) {
+    observeOne(o, context, opts);
   }
-  context[key] = [{ name: arrKey, type: 'array', items: context[arrKey] || [] }];
+  context[cm.name] = [{ name: cm.name, type: 'array', items: context[arrKey] || [] }];
 }
 
-export function optionalStrategy(key: string, obj: unknown, context: TypeContext, opts: OptionalStrategyOpts ): void {
+export function optionalStrategy(cm: ObjectMetaModel, context: TypeContext, opts: OptionalStrategyOpts ): void {
   
-  const cm = createMetaModel(key, obj, context) as ObjectMetaModel;
-  const existingModel = context[key];
+  const existingModel = context[cm.name];
   let bestMatch: CompareMatch | null = null;
   let bestMatchModel: ObjectMetaModel | null = null;
   for (const m2 of existingModel) {
@@ -105,15 +97,14 @@ export function optionalStrategy(key: string, obj: unknown, context: TypeContext
     } else {
       // we've passed the configured number of types to store, we will need to convert this type to a record
       // do this by specifying the strategy for the key and running back through the observer.
-      opts.strategyHints[key] = 'record';
-      observeOne(key, obj, context, opts);
+      opts.strategyHints[cm.name] = 'record';
+      observeOne(cm, context, opts);
     }
   }
 }
 
-export function recordStrategy(key: string, obj: unknown, context: TypeContext, opts: StrategyHints): void {
-  const cm = createMetaModel(key, obj, context) as ObjectMetaModel;
-  const existingModel = context[key];
+export function recordStrategy(cm: ObjectMetaModel, context: TypeContext, opts: StrategyHints): void {
+  const existingModel = context[cm.name];
   const existingRecord = existingModel.find((m) => m.type === 'record') as RecordMetaModel | undefined;
 
   if (existingRecord) {
@@ -128,14 +119,14 @@ export function recordStrategy(key: string, obj: unknown, context: TypeContext, 
     });
     const record: RecordMetaModel = {
       type: 'record',
-      name: key,
+      name: cm.name,
       values: allValues
     }
-    context[key] = [record, ...nonObjTypes];
+    context[cm.name] = [record, ...nonObjTypes];
   }
 }
 
-export function unionStrategy(key: string, obj: unknown, context: TypeContext, opts: UnionStrategyOpts): void  {
+export function unionStrategy(m: ObjectMetaModel, context: TypeContext, opts: UnionStrategyOpts): void  {
 
   // if strategy is union
   // if card(mm) less than RecordConversionThreshold
@@ -143,10 +134,9 @@ export function unionStrategy(key: string, obj: unknown, context: TypeContext, o
   // if card(mm) more than RecordConversionThreshold
   //             promote to Record < string, x >
   //   remove all objects from model, replace with Record < string, x | y >
-  const m = createMetaModel(key, obj, context) as ObjectMetaModel;
-  const existingModel = context[key];
+  const existingModel = context[m.name];
   if (!existingModel.length) {
-    context[key].push(m);
+    context[m.name].push(m);
     return;
   }
 
@@ -166,8 +156,8 @@ export function unionStrategy(key: string, obj: unknown, context: TypeContext, o
     } else {
       // we've passed the configured number of types to store, we will need to convert this type to a record
       // do this by specifying the strategy for the key and running back through the observer.
-      opts.strategyHints[key] = 'record';
-      observeOne(key, obj, context, opts);
+      opts.strategyHints[m.name] = 'record';
+      observeOne(m, context, opts);
     }
   } else {
     expandObjectTypes(Object.keys(m.model), m, foundSameShape);
