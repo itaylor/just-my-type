@@ -1,5 +1,5 @@
 import { arrayCompare, objectCompare } from './compare.ts';
-import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.109.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.109.0/testing/asserts.ts";
 import { BasicMetaModel, ArrayMetaModel, ObjectMetaModel } from './types.ts'
 
 

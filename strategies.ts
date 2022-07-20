@@ -103,7 +103,7 @@ export function optionalStrategy(cm: ObjectMetaModel, context: TypeContext, opts
   }
 }
 
-export function recordStrategy(cm: ObjectMetaModel, context: TypeContext, opts: StrategyHints): void {
+export function recordStrategy(cm: ObjectMetaModel, context: TypeContext, _opts: StrategyHints): void {
   const existingModel = context[cm.name];
   const existingRecord = existingModel.find((m) => m.type === 'record') as RecordMetaModel | undefined;
 

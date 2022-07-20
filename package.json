@@ -1,6 +1,6 @@
 {
   "name": "@itaylor/just_my_type",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Derives typescript types from JS objects",
   "main": "node/main.js",
   "types": "node/main.d.ts",
